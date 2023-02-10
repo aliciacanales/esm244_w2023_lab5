@@ -1,0 +1,106 @@
+---
+title: "lab 5 part 1"
+author: "Alicia Canales"
+date: "2023-02-09"
+output: html_document
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE)
+```
+
+
+```{r}
+library(tidyverse)
+library(here)
+library(ggfortify)
+
+library(patchwork)
+library(readxl)
+library(gghighlight)
+library(lubridate)
+library(plotly)
+```
+
+# Part 1: Principal component analysis (PCA)
+```{r}
+hdi_data <- read_csv(here("data/hdi_clean.csv")) %>% 
+  drop_na() %>% 
+  mutate(hdicode = factor(hdicode, levels = c('Low', 'Medium', 'High', 'Very High')))
+
+hdi_pca <- hdi_data %>% 
+  dplyr::select(where(is.numeric)) %>% 
+  scale() %>% # makes the std of 1, rescale 
+  prcomp()
+summary(hdi_pca)
+
+loadings_df <- data.frame(hdi_pca$rotation * 8) %>% # to see the arrows better 
+  mutate(axis = row.names(.)) # defining the arrows
+#getting our PCs
+
+new_pts_df <- data.frame(hdi_pca$x)
+
+ggplot() +
+  geom_point(data = new_pts_df, aes(x = PC1, y = PC2), color = 'blue') +
+  geom_segment(data = loadings_df, x = 0, y = 0,
+               aes(xend = PC1, yend = PC2, group = axis),
+               arrow = arrow(length = unit(.25, 'cm'))) +
+  geom_text(data = loadings_df,
+            aes(x = PC1, y = PC2, label = axis)) +
+  theme_minimal()
+```
+
+
+
+```{r}
+autoplot(hdi_pca,
+                    data = hdi_data,
+     	loadings = TRUE,
+     	colour = 'hdicode',
+     	loadings.label = TRUE,
+     	loadings.colour = "black",
+     	loadings.label.colour = "black",
+     	loadings.label.vjust = -0.5
+     	)+ scale_color_manual(values = c('red', 'orange', 'yellowgreen', 'darkgreen')) +
+  theme_minimal() # goal is to see if we can find more clear patterns if we switch and move the axis. A lot of the information is being captured by PC1. PC1 explains 69.85% of the variance
+```
+
+
+### Screeplot by hand
+```{r}
+sd_vec <- hdi_pca$sdev
+var_vec <- sd_vec^2
+pc_names <- colnames(hdi_pca$rotation)
+
+pct_expl_df <- data.frame(v = var_vec,
+                          pct_v = var_vec / sum(var_vec),
+                          pc = fct_inorder(pc_names)) %>% 
+  mutate(pct_lbl = paste0(round(pct_v * 100, 1), '%')) # making it a percentage and pasting the percent sign on the values
+
+
+ggplot(pct_expl_df, aes(x = pc, y = v)) +
+  geom_col() +
+  geom_text(aes(label = pct_lbl), vjust = 0, nudge_y = .002) +
+  labs(x = 'principal component', y = ' Variance explained')
+
+
+```
+
+```{r}
+# super quick results without doing all of the aes
+screeplot(hdi_pca, type = 'lines')
+screeplot(hdi_pca, type = 'barplot')
+
+```
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
